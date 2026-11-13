@@ -17,6 +17,8 @@ copy /y "%ROOT%README.md" "%DIST%" >nul
 copy /y "%ROOT%LICENSE" "%DIST%" >nul
 copy /y "%ROOT%run_all.cmd" "%DIST%" >nul
 copy /y "%ROOT%test_*.cmd" "%DIST%" >nul
+mkdir "%DIST%\edid"
+copy /y "%ROOT%edid\edid_stereo.py" "%DIST%\edid" >nul
 if exist "%DIST%.zip" del "%DIST%.zip"
 powershell -NoProfile -Command "Compress-Archive -Path '%DIST%\*' -DestinationPath '%DIST%.zip'"
 if errorlevel 1 exit /b 1

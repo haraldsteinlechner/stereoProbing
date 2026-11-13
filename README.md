@@ -36,7 +36,7 @@ build.cmd        # builds, runs the tests, writes build\dist\stereo-tools.zip
 ```
 
 The zip contains `stereo_probe.exe`, `redblue.exe`, the `test_*.cmd`
-scripts, `run_all.cmd`, this README and `LICENSE`. The exes
+scripts, `run_all.cmd`, `edid\edid_stereo.py`, this README and `LICENSE`. The exes
 link the CRT statically. They need only the GPU driver (`vulkan-1.dll` ships
 with it).
 
@@ -118,6 +118,47 @@ OpenGL formats are counted per output, on a window placed on that output, and
 only when `GL_RENDERER` names that output's adapter. Measured: a window on the
 Intel output gets the AMD renderer on the W7600 box (GPU preference routes
 OpenGL to AMD).
+
+## EDID stereo patcher
+
+`edid/edid_stereo.py` takes a monitor's EDID and writes variants that declare
+stereo support. With such an EDID, Windows and the driver may offer stereo
+modes and the Windows 3D toggle on a display that has no stereo EDID of its
+own. Requires Python via [uv](https://docs.astral.sh/uv/).
+
+Variants:
+
+- `hdmi3d`: in the CTA extension, non-HDMI vendor blocks are replaced by an
+  HDMI 1.4 VSDB with `3D_present=1`.
+- `dtd-stereo`: the stereo bits of base DTD 1 are set to field sequential.
+
+Example (PowerShell):
+
+```powershell
+# 1. Find the monitor's instance id
+Get-PnpDevice -Class Monitor -PresentOnly | Select-Object FriendlyName, InstanceId
+
+# 2. Export its EDID
+$id = "DISPLAY\ABC1234\1&2345678&0&UID256"   # InstanceId from step 1
+[IO.File]::WriteAllBytes("$PWD\monitor.bin",
+    (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Enum\$id\Device Parameters").EDID)
+
+# 3. Write the variants and .reg files
+uv run --no-project edid\edid_stereo.py monitor.bin out --instance $id
+```
+
+This writes `out\monitor_<variant>.bin` plus `_apply.reg` and `_revert.reg`
+for each variant. Use them in one of two ways:
+
+- Load the `.bin` into the GPU driver's EDID emulation, if it has one.
+- Double-click `_apply.reg` to set the Windows `EDID_OVERRIDE` key. This needs
+  admin rights and takes effect after replugging the monitor or rebooting.
+  `_revert.reg` removes the override.
+
+A monitor that cannot show the advertised modes may go black in them. Revert
+in that case.
+
+Tests: `uv run --no-project --with pytest python -m pytest -q edid`
 
 ## Credits and license
 
